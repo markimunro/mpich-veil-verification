@@ -1,0 +1,41 @@
+You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil.
+
+## Each Folder's function
+**info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`.
+**src**: folder `chatgpt` has old attempts at verifying MPI algorithms using ChatGPT, and the rest is where the code is being developed.
+**mpich_civl**: where the verification of some MPICH algorithms was done using CIVL-C, which are the algortihms we are going to try and prove. The paper talking about what was done is `hovland-mpich-vss2025.txt`
+**mpich_repo**: the original MPICH repository
+**veil_repo**: the original Veil repository with great examples in folder `Examples`
+
+## Veil Verification Rules
+1. **Always reference info/Ring.lean first** for syntax patterns when writing Veil code, since it is the most extensive
+2. **Reference veil_repo/Examples** for more syntax patterns and examples of Veil being used
+3. **Reference all allreduce_intra_recursive_doubling functions in mpich_civl** for a reference of how it was proved using CIVL
+4. **Reference info/'collective contracts for message-passing parallel programs'** for how to verify this.  The png file has a contract in CIVL-C of the MPI_Allreduce function, although I don't know what implementation it is verifying.
+5. **Break complex algorithms into phases** rather than modeling everything at once
+6. **Check repository's included in my folders** if you feel like there is any information that you might need from it.
+7. **Sort of ignore MPI/chatgpt**, since you will probably be able to do the job more effectively moving on, but you could still take some inspiration from it
+8. **Prioritize correctness properties early** - define safety/invariants before complex actions
+
+## Key Patterns from Ring.lean to Follow:
+1. Use `type` for uninterpreted types (like `proc`)
+2. Use `relation` for mutable state
+3. Use `after_init` for initial conditions
+4. Use `action` for state transitions
+5. Use `invariant` for properties that must hold
+6. Use `safety` for correctness properties
+
+# Allreduce Verification Strategy
+
+## Phase 1: Abstract Model
+- Model processes, data values, communication abstractly
+- Focus on the 3-phase structure
+
+## Phase 2: Correctness Properties  
+- All processes end up with same result
+- Result is correct reduction of all inputs
+- Algorithm terminates
+
+## Phase 3: Detailed Implementation
+- Handle non-power-of-2 edge cases
+- Model commutative vs non-commutative operations
