@@ -1,4 +1,4 @@
-You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil.
+You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil. We need to be sure that the development will be very well documented, with consistent commits and explaining why each step is being taken. We want to build maintainable code while not creating bugs every single step of the way.
 
 ## Each Folder's function
 **info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`.
@@ -25,17 +25,185 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 5. Use `invariant` for properties that must hold
 6. Use `safety` for correctness properties
 
-# Allreduce Verification Strategy
+# Veil Development Process Guide
 
-## Phase 1: Abstract Model
-- Model processes, data values, communication abstractly
-- Focus on the 3-phase structure
+## Core Development Methodology: Counterexample-Driven Invariant Discovery
 
-## Phase 2: Correctness Properties  
-- All processes end up with same result
-- Result is correct reduction of all inputs
-- Algorithm terminates
+Veil follows an **iterative, counterexample-driven development process** that guides you from initial specification to complete verification. This process is exemplified in Ring.lean and is fundamental to successful Veil verification.
 
-## Phase 3: Detailed Implementation
-- Handle non-power-of-2 edge cases
-- Model commutative vs non-commutative operations
+### Phase 1: Initial Specification Setup
+
+1. **Define Basic Structure**
+   ```lean
+   veil module YourProtocol
+   type proc  -- or whatever types you need
+   relation your_state_vars (params...)
+   ```
+
+2. **Set Essential Options Early**
+   ```lean
+   set_option veil.printCounterexamples true      -- Essential for debugging
+   set_option veil.smt.model.minimize true       -- Makes counterexamples readable
+   set_option veil.vc_gen "transition"           -- Shows pre/post states in CTIs
+   ```
+
+3. **Define Initial State**
+   ```lean
+   after_init {
+     your_relation ARGS := initial_values
+   }
+   ```
+
+4. **Create Actions (Start Simple)**
+   - Begin with core actions only
+   - Use `require` statements for preconditions
+   - Don't worry about completeness initially
+
+5. **Define Safety Properties First**
+   ```lean
+   safety [property_name] your_safety_condition
+   ```
+
+### Phase 2: The Counterexample-Driven Iteration Loop
+
+This is the **heart of Veil development**:
+
+1. **Run Initial Check**
+   ```lean
+   #gen_spec
+   #check_invariants
+   ```
+
+2. **Analyze Counterexamples (CTIs)**
+   - CTI = "Counterexample to Induction"
+   - Shows pre-state `st` and post-state `st'`
+   - Identifies which action violates which invariant
+   - **Key insight**: CTI shows unreachable but logically possible states
+
+3. **Interpret CTI Structure**
+   ```
+   action_name_property_name:
+   interpreted sort Bool
+   sort node = #[node0, node1]           -- Domain elements
+   parameter = value                     -- Action parameters
+   st.relation(args) = value            -- Pre-state
+   st'.relation(args) = value           -- Post-state  
+   background.relation(args) = value    -- Background theory
+   ```
+
+4. **Discover Missing Invariants**
+   - Ask: "Why is this pre-state unreachable in valid executions?"
+   - Add invariant clauses to eliminate the CTI:
+   ```lean
+   invariant [descriptive_name] condition_that_rules_out_CTI
+   ```
+
+5. **Repeat Until No CTIs**
+   - Run `#check_invariants` again
+   - Get new CTIs for different invariant/action combinations
+   - Add more invariant clauses
+   - **This is normal and expected!**
+
+### Phase 3: Advanced Development Techniques
+
+1. **Use Ghost Relations for Complex Properties**
+   ```lean
+   ghost relation derived_property (args...) := 
+     complex_condition_in_terms_of_real_state
+   ```
+
+2. **Bounded Model Checking for Validation**
+   ```lean
+   sat trace [trace_name] {
+     action_sequence
+     assert (property_you_expect)
+   } by { bmc_sat }
+   
+   unsat trace {
+     action_sequence  
+     assert (property_that_should_be_impossible)
+   } by { bmc }
+   ```
+
+3. **Interactive Proofs When SMT Fails**
+   - Use `#check_invariants!` to see unprovable goals
+   - Use `solve_clause` tactic in interactive proofs
+   - Three outcomes: ✅ success, ❌ counterexample, ❓ unknown
+
+## Development Strategy for Complex Protocols (like Allreduce)
+
+### 1. Incremental Complexity
+- Start with power-of-2 case only
+- Add non-power-of-2 handling later
+- Model abstract reduction operation initially
+- Add commutative/non-commutative distinction later
+
+### 2. Phase-Based Modeling
+- **Phase 1**: Pre-processing (handle non-power-of-2)
+- **Phase 2**: Main algorithm (recursive doubling)  
+- **Phase 3**: Post-processing (distribute results)
+- Model each phase separately with intermediate correctness properties
+
+### 3. Key MPI Allreduce Properties to Establish
+```lean
+-- Safety: All processes end with same result
+safety [all_same_result] completed P ∧ completed Q → result P = result Q
+
+-- Correctness: Result is proper reduction of inputs  
+safety [correct_reduction] completed P → result P = reduce_all_inputs
+
+-- Termination: Algorithm eventually completes
+-- (Use bounded model checking to validate)
+```
+
+## Common Veil Patterns for MPI Verification
+
+### 1. Process Modeling
+```lean
+type proc
+relation is_active (p : proc)           -- Process participation
+relation has_data (p : proc) (v : value) -- Process's current data
+```
+
+### 2. Message Modeling  
+```lean
+relation pending_msg (src dst : proc) (data : value)
+-- or for complex messages:
+relation pending_reduce_msg (src dst : proc) (round : Nat) (data : value)
+```
+
+### 3. Algorithm Phase Tracking
+```lean
+relation in_phase1 (p : proc)
+relation in_phase2 (p : proc)  
+relation completed (p : proc)
+```
+
+### 4. Rank/Addressing Modeling
+```lean
+function rank (p : proc) : Nat
+function comm_size : Nat
+-- Model XOR addressing for recursive doubling:
+ghost relation exchange_partner (p q : proc) (round : Nat) := 
+  rank p ⊕ (1 << round) = rank q  -- XOR relationship
+```
+
+## Debugging Tips
+
+1. **CTI Analysis Questions**
+   - What makes this pre-state impossible in real executions?
+   - Which background properties are missing?
+   - What ordering constraints are violated?
+
+2. **Use Veil's Pause/Play Feature**
+   - Press ⏸ in Lean Infoview to lock counterexample
+   - Write invariant while looking at CTI
+   - Press ▶ to re-check with new invariant
+
+3. **Systematic Invariant Discovery**
+   - Start with data integrity invariants
+   - Add communication protocol invariants
+   - Add algorithm-specific phase invariants
+   - Add ordering/causality invariants
+
+This methodology transforms the seemingly complex task of protocol verification into a systematic, guided process where counterexamples teach you what invariants your protocol needs.
