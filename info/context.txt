@@ -1,4 +1,4 @@
-You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil. We need to be sure that the development will be very well documented, with consistent commits and explaining why each step is being taken. We want to build maintainable code while not creating bugs every single step of the way.
+You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil. We need to be sure that the development will be very well documented, with consistent commits and explaining why each step is being taken. We want to build maintainable code while not creating bugs every single step of the way. We want to keep a tight loop of implementation.
 
 ## Each Folder's function
 **info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`.
@@ -8,15 +8,15 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 **veil_repo**: the original Veil repository with great examples in folder `Examples`
 
 ## Veil Verification Rules
-1. **ALWAYS reference info/Ring.lean FIRST** - it has the most comprehensive explanations and detailed commentary on every Veil concept
-2. **Use Ring.lean as your primary syntax and methodology guide** - it explains not just what to do but WHY, with detailed comments
-3. **Reference veil_repo/Examples** for additional patterns and advanced techniques as supplementary material
-4. **Reference all allreduce_intra_recursive_doubling functions in mpich_civl** for a reference of how it was proved using CIVL
-5. **Reference info/'collective contracts for message-passing parallel programs'** for how to verify this.  The png file has a contract in CIVL-C of the MPI_Allreduce function, although I don't know what implementation it is verifying.
-6. **Break complex algorithms into phases** rather than modeling everything at once
-7. **Check repository's included in my folders** if you feel like there is any information that you might need from it.
-8. **Sort of ignore MPI/chatgpt**, since you will probably be able to do the job more effectively moving on, but you could still take some inspiration from it
-9. **Prioritize correctness properties early** - define safety/invariants before complex actions
+1. **Always reference info/Ring.lean first** - it has the most comprehensive explanations and detailed commentary on every Veil concept
+2. **Reference veil_repo/Examples** for additional patterns and advanced techniques as supplementary material
+3. **Reference info/veil/ai_summary_veil.txt** for your own code review so you can code in Veil much more effectively and more correctly, since you don't have much training data on Veil.
+3. **Reference all allreduce_intra_recursive_doubling functions in mpich_civl** for a reference of how it was proved using CIVL
+4. **Reference info/'collective contracts for message-passing parallel programs'** for how to verify this.  The png file has a contract in CIVL-C of the MPI_Allreduce function, although I don't know what implementation it is verifying.
+5. **Break complex algorithms into phases** rather than modeling everything at once
+6. **Check repository's included in my folders** if you feel like there is any information that you might need from it.
+7. **Sort of ignore MPI/chatgpt**, since you will probably be able to do the job more effectively moving on, but you could still take some inspiration from it
+8. **Prioritize correctness properties early** - define safety/invariants before complex actions
 
 ## Core Patterns from Ring.lean (PRIMARY REFERENCE):
 1. **Module Structure**: `veil module Name` → types → instantiations → relations → `#gen_state` → `after_init` → actions → invariants/safety → `#gen_spec` → `#check_invariants`
@@ -28,239 +28,33 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 7. **Safety Properties**: `safety [single_leader] leader L1 ∧ leader L2 → L1 = L2`
 8. **Invariants**: Use descriptive names like `[leader_greatest]`, `[no_bypass]` to eliminate CTIs systematically
 
-# Veil Development Process Guide (Based on Ring.lean)
+# Quick Start: Follow Ring.lean
 
-## Core Development Methodology: Counterexample-Driven Invariant Discovery
+**Primary Reference**: Ring.lean has the best explanations and worked examples. Follow its structure and methodology.
 
-Veil follows an **iterative, counterexample-driven development process** as exemplified perfectly in **Ring.lean** (lines 179-317). Ring.lean provides the **definitive tutorial** with complete worked examples, detailed explanations, and comprehensive commentary on every aspect of Veil development.
-
-### Primary Module Structure (from Ring.lean with Examples validation)
-Ring.lean demonstrates the canonical structure that all 20+ Examples follow:
+**Essential Debugging Setup** (from Ring.lean lines 172-176):
 ```lean
-import Veil                           -- Ring.lean line 1
-veil module Ring                      -- Ring.lean line 38
-type node                             -- Ring.lean line 43  
-instantiate tot : TotalOrder node    -- Ring.lean line 50
-relation leader : node → Prop         -- Ring.lean line 86
-#gen_state                            -- Ring.lean line 95
-after_init { leader N := False; ... } -- Ring.lean line 108
-action send (n next : node) = { ... } -- Ring.lean line 118
-safety [single_leader] ...            -- Ring.lean line 163
-#gen_spec                             -- Ring.lean line 170
-#check_invariants                     -- Ring.lean line 177
+set_option veil.printCounterexamples true  
+set_option veil.smt.model.minimize true    
+set_option veil.vc_gen "transition"        
 ```
 
-### Essential Setup Options
+**Basic Module Structure** (Ring.lean pattern):
 ```lean
-set_option veil.printCounterexamples true      -- Essential for CTI analysis
-set_option veil.smt.model.minimize true       -- Makes counterexamples readable
-set_option veil.vc_gen "transition"           -- Shows pre/post states in CTIs
+import Veil
+veil module YourProtocol
+type proc
+relation your_state_relations
+#gen_state
+after_init { /* initial state */ }
+action your_actions = { /* ... */ }
+safety [your_properties] /* ... */
+#gen_spec
+#check_invariants
 ```
 
-## The CTI-Driven Development Loop (Ring.lean Lines 179-317)
-
-Ring.lean provides the **definitive explanation** of CTI-driven development with a complete worked example.
-
-### 1. Ring.lean's CTI Analysis Masterclass
-**Ring.lean explains the complete process (lines 179-317):**
-- **Comment out invariants** to see CTIs (Ring.lean line 164: "COMMENT THEM OUT...")
-- **Analyze the counterexample** (Ring.lean lines 185-213 show the actual CTI output)
-- **Understand what's unreachable** (Ring.lean lines 215-225 explain why the pre-state is invalid)
-- **Add invariant clauses** to eliminate the CTI (Ring.lean shows the exact process)
-
-### 2. CTI Structure (Ring.lean's Detailed Explanation)
-Ring.lean shows the exact CTI format (lines 191-206):
-```
-recv_single_leader:
-interpreted sort Bool
-sort node = #[node0, node1]           -- Domain elements  
-n = node0                             -- Action parameter
-st.leader(node1) = true              -- Pre-state
-st'.leader(node0) = true             -- Post-state
-tot.le(node1, node0) = true          -- Background theory
-```
-
-### 3. Ring.lean's CTI Analysis Questions
-**Ring.lean's methodology (lines 215-225):**
-- "The pre-state `st` is not in fact reachable in valid executions"
-- "This cannot be the case" (explains why CTI is impossible)  
-- "To eliminate this CTI, we add the following clause to our invariant"
-- Shows the exact invariant: `invariant [leader_greatest] leader L → le N L`
-
-### 4. Ring.lean's Debugging Features (Lines 172-178, 228-237)
-**Essential debugging setup from Ring.lean:**
-```lean
-set_option veil.printCounterexamples true  -- Ring.lean line 172
-set_option veil.smt.model.minimize true    -- Ring.lean line 173
-set_option veil.vc_gen "transition"        -- Ring.lean line 176
-```
-
-**Ring.lean's Pause/Play Tip (lines 179-181):**
-- "Press the pause (⏸) button in the Lean Infoview to 'lock' the counter-example"
-- "Then press play (▶) button to re-check the spec with the newly added invariant"
-
-### 5. Ring.lean's Systematic Invariant Discovery
-**Ring.lean demonstrates 3 essential invariant types:**
-```lean
-invariant [leader_greatest] leader L → le N L           -- Ring.lean line 165: Functional constraint
-invariant [receive_self_msg_only_if_greatest] pending L L → le N L  -- Ring.lean line 166: Message integrity  
-invariant [no_bypass] pending S D ∧ btw S N D → le N S  -- Ring.lean line 167: Topology constraint
-```
-
-### 6. Ring.lean's Bounded Model Checking (Lines 275-407)
-**Ring.lean shows how to validate specifications using BMC:**
-```lean
-sat trace [can_elect_leader] {        -- Ring.lean line 386
-  any 3 actions
-  assert (∃ l, leader l)
-} by { bmc_sat }
-
-unsat trace {                         -- Ring.lean line 391  
-  send
-  assert (¬ ∃ n next, pending n next)
-} by { bmc }
-```
-
-**Ring.lean explains trace specifications (lines 266-275):**
-- `sat`/`unsat` - is the trace satisfiable?
-- `[optional_name]` - trace name  
-- `{ ... }` - sequence of actions + assert statements
-- `by bmc_sat / bmc` - the proof method
-
-## Supplementary Patterns from Examples Analysis (Use After Mastering Ring.lean)
-
-### Naming Conventions (Universal across examples)
-- `has_X` - Ownership/possession (`has_data`, `has_token`)
-- `in_X` - Status/phase (`in_crit`, `in_round`) 
-- `pending_X` - Messages in transit (`pending_msg`, `pending_vote`)
-- `sent/received_X` - Communication events
-- `vote_X` - Voting actions (`vote_yes`, `vote_commit`)
-
-### Type Declarations with Instantiations
-```lean
-type node                                    -- Universal process type
-type value                                   -- Data values
-type round                                   -- Protocol rounds/phases
-instantiate tot : TotalOrder round          -- Ordering on rounds
-instantiate bg : Background node set_majority  -- Custom background theory
-```
-
-### Relation vs Function Usage Patterns
-```lean
--- Use FUNCTIONS for single-valued mappings:
-function rank (p : proc) : Nat
-function next_node : node → node
-
--- Use RELATIONS for multi-valued/boolean state:
-relation has_data (p : proc) (v : value)
-relation in_phase (p : proc) (ph : phase)
-```
-
-### Action Design Patterns
-```lean
-action allreduce_send (src dst : proc) (round : Nat) = {
-  require in_active_phase src                    -- State precondition
-  require rank dst = rank src ⊕ (1 << round)    -- Partner calculation
-  require has_data src *                         -- Non-deterministic data
-  let combined_data : value ← combine (data src) (data dst);  -- Fresh variable
-  pending_reduce_msg src dst round combined_data := True;     -- State update
-  if round = final_round then completed src := True          -- Conditional logic
-}
-```
-
-## MPI Allreduce-Specific Development Strategy
-
-### 1. Three-Phase Modeling (Incremental Complexity)
-```lean
--- Phase 1: Handle non-power-of-2 processes
-relation in_preprocessing (p : proc)
-relation virtual_rank (p : proc) : Nat  -- Adjusted ranks
-
--- Phase 2: Recursive doubling main algorithm  
-relation in_doubling (p : proc) (round : Nat)
-ghost relation exchange_partner (p q : proc) (round : Nat) := 
-  rank p ⊕ (1 << round) = rank q
-
--- Phase 3: Result distribution
-relation in_postprocessing (p : proc)
-relation has_final_result (p : proc) (result : value)
-```
-
-### 2. Key Allreduce Safety Properties
-```lean
--- Mutual exclusion of phases
-safety [phase_mutex] ¬(in_preprocessing P ∧ in_doubling P R)
-
--- Agreement on final result
-safety [agreement] has_final_result P V1 ∧ has_final_result Q V2 → V1 = V2
-
--- Correctness of reduction
-safety [reduction_correct] has_final_result P V → 
-  V = reduce_all_initial_values
-
--- Progress (validate with BMC)
-sat trace [normal_execution] {
-  allreduce_start; 
-  [sequence of actions];
-  assert (∀ P, has_final_result P *)
-} by { bmc_sat }
-```
-
-### 3. Message Modeling for Allreduce
-```lean
--- Simple message model
-relation pending_reduce (src dst : proc) (round : Nat) (data : value)
-
--- Complex message model with metadata
-relation reduce_msg (src dst : proc) (round : Nat) (data : value) (phase : phase)
-```
-
-## Performance & Decidability Guidelines (from Examples analysis)
-
-### EPR-Friendly Patterns (Fast Verification < 5s)
-- Avoid edges from basic types to complex types (`proc → set_proc`)
-- Use functions over relations for single-valued mappings
-- Prefer ghost relations over complex quantification
-
-### When SMT Struggles (> 15s verification)
-- Complex background theories (custom quorum systems)
-- Heavy use of existential quantification over complex types
-- Non-EPR patterns with deep quantifier nesting
-
-### Debugging Strategies (Proven from Examples)
-1. **Lock CTI with Pause/Play**: Press ⏸ to freeze counterexample
-2. **Incremental invariant addition**: Add one clause at a time
-3. **BMC validation**: Test reachability/impossibility claims
-4. **Ghost relation abstraction**: Simplify complex derived properties
-
-## Advanced Patterns for Complex Protocols
-
-### Byzantine Fault Tolerance (when needed)
-```lean
-variable (is_honest : proc → Prop)
--- Honest behavior preservation:
-invariant [honest_behavior] is_honest P → follows_protocol P
-```
-
-### Background Theory Usage
-```lean
-assumption ∀ (P Q : proc), exchange_partners P Q R → 
-  combine_order P Q = combine_order Q P  -- Commutativity
-```
-
-## Ring.lean: The Definitive Veil Learning Resource
-
-**Ring.lean is your primary guide** - it provides:
-- **Complete CTI-driven methodology** with worked examples (lines 179-317)
-- **Detailed explanations of every concept** with extensive commentary  
-- **Debugging strategies** with specific tips (pause/play, option settings)
-- **Bounded model checking** examples for validation (lines 275-407)
-- **Interactive proof techniques** for advanced users (lines 238-264)
-
-**Development Strategy**: 
-1. **Master Ring.lean first** - understand every line and comment
-2. **Apply Ring.lean patterns** to your allreduce specification
-3. **Use Examples analysis** as supplementary reference for advanced patterns
-4. **Follow Ring.lean's CTI-driven discovery process** to find invariants systematically
-
-This approach transforms protocol verification into a systematic, guided process where Ring.lean's detailed explanations teach you both the "what" and the "why" of successful Veil development.
+**CTI-Driven Development** (Ring.lean's approach):
+1. Get CTIs (counterexamples) - this is good!
+2. Understand why the pre-state is unreachable
+3. Add invariant to eliminate that CTI
+4. Repeat until all safety properties verify
