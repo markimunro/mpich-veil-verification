@@ -1,0 +1,63 @@
+#include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef AR_OP
+#define AR_OP MPI_SUM
+#endif
+
+#ifndef NMAX
+#define NMAX 10
+#endif
+
+$input int N;
+$assume (1 <= N && N <= NMAX);
+$input double x_val[N][16];
+
+int MPIR_Allreduce_intra_recursive_doubling(const void *,
+                                            void *,
+                                            MPI_Aint,
+                                            MPI_Datatype,
+                                            MPI_Op, MPI_Comm);
+
+int main(int argc, char *argv[]) {
+    int rank, size;
+    double x[N], allreduce_result[N], my_allreduce_result[N];
+
+    MPI_Init(&argc, &argv);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (rank == 0) printf("NP = %d, OPERATOR = %d\n",size,AR_OP);
+
+    // Initialize array x on each process (example: fill with rank)
+    for (int i = 0; i < N; i++) {
+        x[i] = x_val[i][rank];
+    }
+
+    // Perform MPI_AllReduce
+    MPI_Allreduce(x, allreduce_result, N, MPI_DOUBLE, AR_OP, MPI_COMM_WORLD);
+
+    MPIR_Allreduce_intra_recursive_doubling(x, my_allreduce_result, N, MPI_DOUBLE, AR_OP, MPI_COMM_WORLD);
+
+    // Compare results
+    int correct = 1;
+    for (int i = 0; i < N; i++) {
+        $assert(allreduce_result[i] == my_allreduce_result[i]);
+        if (allreduce_result[i] != my_allreduce_result[i]) {
+            correct = 0;
+            break;
+        }
+    }
+
+    if (correct) {
+        printf("Ok. ");
+    } else {
+        printf("Rank %d: Results do NOT match!\n", rank);
+    }
+
+    MPI_Finalize();
+    return 0;
+}
