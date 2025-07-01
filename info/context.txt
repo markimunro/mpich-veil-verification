@@ -10,7 +10,7 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 ## Approach to verification
 1. **Define a rigourous specification for the current chat**. Define what will be added/included, the invariants needed for a collective contract, etc. Shorter advances are prioritized rather than huge changes.
 2. **Implement it**
-3. **CTI feedback loop with counterexamples**
+3. **CTI feedback loop with counterexamples**. You are unable to test it yourself, so always ask for me to send you the counterexamples and the output.
 4. **Review changes and chat** to ensure the progress is in the right direction
 5. **Add another file with the overview of that chat and the progress made**
 
