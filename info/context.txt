@@ -1,22 +1,28 @@
 You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil. We need to be sure that the development will be very well documented, with consistent commits and explaining why each step is being taken. We want to build maintainable code while not creating bugs every single step of the way. We want to keep a tight loop of implementation.
 
 ## Each Folder's function
-**info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`.
+**info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`, my notes, and folder `process` which keeps track of everything that has been done through your chat overviews.
 **src**: folder `chatgpt` has old attempts at verifying MPI algorithms using ChatGPT, and the rest is where the code is being developed.
 **mpich_civl**: where the verification of some MPICH algorithms was done using CIVL-C, which are the algortihms we are going to try and prove. The paper talking about what was done is `hovland-mpich-vss2025.txt`
 **mpich_repo**: the original MPICH repository
 **veil_repo**: the original Veil repository with great examples in folder `Examples`
 
-## Veil Verification Rules
+## Approach to verification
+1. **Define a rigourous specification for the current chat**. Define what will be added/included, the invariants needed for a collective contract, etc. Shorter advances are prioritized rather than huge changes.
+2. **Implement it**
+3. **CTI feedback loop with counterexamples**
+4. **Review changes and chat** to ensure the progress is in the right direction
+5. **Add another file with the overview of that chat and the progress made**
+
+## References
 1. **Reference info/Ring.lean first** - it has the most comprehensive explanations and detailed commentary on every Veil concept
 2. **Reference veil_repo/Examples** for additional patterns and advanced techniques as supplementary material
 3. **Reference info/veil/ai_summary_veil.txt** for your own code review so you can code in Veil much more effectively and more correctly, since you don't have much training data on Veil.
 3. **Reference all allreduce_intra_recursive_doubling functions in mpich_civl** for a reference of how it was proved using CIVL
 4. **Reference info/'collective contracts for message-passing parallel programs'** for how to verify this.  The png file has a contract in CIVL-C of the MPI_Allreduce function, although I don't know what implementation it is verifying.
-5. **Break complex algorithms into phases** rather than modeling everything at once
-6. **Check repository's included in my folders** if you feel like there is any information that you might need from it.
-7. **Sort of ignore MPI/chatgpt**, since you will probably be able to do the job more effectively moving on, but you could still take some inspiration from it
-8. **Prioritize correctness properties early** - define safety/invariants before complex actions
+5. **Check mpich_civl or mpich_repo** if you feel like there's more you need to see about the MPICH implementation.
+6. **Sort of ignore MPI/chatgpt**, since you will probably be able to do the job more effectively moving on, but you could still take some inspiration from it
+
 
 ## Core Patterns from Ring.lean (PRIMARY REFERENCE):
 1. **Module Structure**: `veil module Name` → types → instantiations → relations → `#gen_state` → `after_init` → actions → invariants/safety → `#gen_spec` → `#check_invariants`
