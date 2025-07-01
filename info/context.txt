@@ -8,7 +8,7 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 **veil_repo**: the original Veil repository with great examples in folder `Examples`
 
 ## Veil Verification Rules
-1. **Always reference info/Ring.lean first** - it has the most comprehensive explanations and detailed commentary on every Veil concept
+1. **Reference info/Ring.lean first** - it has the most comprehensive explanations and detailed commentary on every Veil concept
 2. **Reference veil_repo/Examples** for additional patterns and advanced techniques as supplementary material
 3. **Reference info/veil/ai_summary_veil.txt** for your own code review so you can code in Veil much more effectively and more correctly, since you don't have much training data on Veil.
 3. **Reference all allreduce_intra_recursive_doubling functions in mpich_civl** for a reference of how it was proved using CIVL
@@ -28,9 +28,7 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 7. **Safety Properties**: `safety [single_leader] leader L1 ∧ leader L2 → L1 = L2`
 8. **Invariants**: Use descriptive names like `[leader_greatest]`, `[no_bypass]` to eliminate CTIs systematically
 
-# Quick Start: Follow Ring.lean
-
-**Primary Reference**: Ring.lean has the best explanations and worked examples. Follow its structure and methodology.
+**Ring.lean**: Ring.lean has the best explanations and worked examples. Follow its structure and methodology, but please also look at the other examples.
 
 **Essential Debugging Setup** (from Ring.lean lines 172-176):
 ```lean
@@ -51,6 +49,7 @@ action your_actions = { /* ... */ }
 safety [your_properties] /* ... */
 #gen_spec
 #check_invariants
+sat trace
 ```
 
 **CTI-Driven Development** (Ring.lean's approach):
