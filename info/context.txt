@@ -8,11 +8,12 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 **veil_repo**: the original Veil repository with great examples in folder `Examples`
 
 ## Approach to verification
-1. **Define a rigourous specification for the current chat**. Define what will be added/included, the invariants needed for a collective contract, etc. Shorter advances are prioritized rather than huge changes.
-2. **Implement it**
-3. **CTI feedback loop with counterexamples**. You are unable to test it yourself, so always ask for me to send you the counterexamples and the output.
-4. **Review changes and chat** to ensure the progress is in the right direction
-5. **Add another file with the overview of that chat and the progress made**
+1. **Check info/process** for the previous chats so you have context of what has been going on.
+2. **Define a rigourous specification for the current chat**. Define what will be added/included, the invariants needed for a collective contract, etc. Shorter advances are prioritized rather than huge changes.
+3. **Implement it**
+4. **CTI feedback loop with counterexamples**. You are unable to test it yourself, so always ask for me to send you the counterexamples and the output.
+5. **Review changes and chat** to ensure the progress is in the right direction
+6. **Add another file with the overview of that chat and the progress made**
 
 ## References
 1. **Reference info/Ring.lean first** - it has the most comprehensive explanations and detailed commentary on every Veil concept
