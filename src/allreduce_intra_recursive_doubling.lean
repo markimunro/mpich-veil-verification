@@ -5,8 +5,10 @@ import Veil
 This file specifies and verifies the correctness of the recursive doubling
 allreduce algorithm using the Veil verification framework.
 
-The specification ensures that all processes end with the same value, which
-is the mathematically correct reduction of all processes' initial contributions.
+The specification focuses on the communication coordination that ensures all
+processes converge to the same final result through the recursive doubling pattern.
+The actual reduction operation semantics are abstracted away (like MPIR_Reduce_local
+in the C implementation).
 -/
 
 -- Configure Veil for effective counterexample-driven development
@@ -21,16 +23,18 @@ veil module AllreduceRecursiveDoubling
 -- Represents process identifiers in the parallel system
 type proc
 
--- Represents the data values being reduced across processes
+-- Represents the data values being communicated and reduced
 type value
 
--- Reduction operations supported by the allreduce algorithm
--- Corresponds to standard MPI reduction operations
-inductive operation
-| sum
-| prod
-| min
-| max
+-- **Abstract Reduction Operation**
+
+-- Models MPIR_Reduce_local() - a trusted black box that combines two values
+-- The algorithm doesn't need to know the specific arithmetic, just that
+-- it produces deterministic results for coordination
+immutable function reduce_op : value → value → value
+
+-- Each participating process has an immutable input value
+immutable function input_value : proc → value
 
 -- **Core State Relations**
 
@@ -43,19 +47,11 @@ relation received_value (p : proc) (v : value)
 -- Process p has completed the allreduce algorithm
 relation completed (p : proc)
 
--- **Semantic Tracking Relations**
-
--- Process p initially contributed value v to the allreduce
--- This relation is immutable once set and tracks original contributions
-relation initial_value (p : proc) (v : value)
+-- **Coordination Relations**
 
 -- Process p is participating in this allreduce operation
 -- Models MPI communicator membership
 relation participating (p : proc)
-
--- The reduction operation being used in this allreduce
--- All participating processes must use the same operation
-relation using_operation (op : operation)
 
 -- **Communication Model**
 
@@ -64,13 +60,6 @@ relation pending (src : proc) (dst : proc) (v : value)
 
 #gen_state
 
--- **Ghost Relations**
-
--- Placeholder for defining when a value is the correct reduction result
--- Will be refined to encode actual reduction semantics
-ghost relation correct_reduction_result (v : value) (op : operation) :=
-  True
-
 -- **Initial State**
 
 after_init {
@@ -78,28 +67,20 @@ after_init {
   received_value P V := False
   pending P Q V := False
   completed P := False
-  initial_value P V := False
   participating P := False
-  using_operation OP := False
 }
 
 -- **Actions**
 
--- Process p starts the allreduce with initial value v using operation op
--- Establishes both computational state and semantic tracking
-action start_with_value (p : proc) (v : value) (op : operation) = {
+-- Process p starts the allreduce with its input value
+action start_allreduce (p : proc) = {
   require ∀ V, ¬has_value p V
-  require ∀ V, ¬initial_value p V
   require ¬completed p
   require ¬participating p
 
-  -- Ensure all processes use the same operation
-  require (∀ op_any, ¬using_operation op_any) ∨ using_operation op
-
+  let v := input_value p
   has_value p v := True
-  initial_value p v := True
   participating p := True
-  using_operation op := True
 }
 
 -- Process sender sends its current value to receiver
@@ -107,6 +88,7 @@ action send_value (sender : proc) (receiver : proc) (v : value) = {
   require has_value sender v
   require sender ≠ receiver
   require participating sender
+  require ∀ V, ¬pending sender receiver V  -- Prevent duplicate messages
 
   pending sender receiver v := True
 }
@@ -121,16 +103,15 @@ action receive_message (receiver : proc) (sender : proc) (v : value) = {
 }
 
 -- Process p combines its local value with a received value
--- Will be enhanced to enforce correct reduction operation semantics
-action combine_values (p : proc) (v_local : value) (v_received : value) (v_result : value) (op : operation) = {
+-- Uses the abstract reduce_op (like MPIR_Reduce_local in the C code)
+action combine_values (p : proc) (v_local : value) (v_received : value) = {
   require has_value p v_local
   require received_value p v_received
-  require using_operation op
   require participating p
   require ¬completed p
 
-  -- Placeholder for reduction operation constraints
-  require True
+  -- Use the abstract reduction operation (trusted black box)
+  let v_result := reduce_op v_local v_received
 
   has_value p v_local := False
   received_value p v_received := False
@@ -153,34 +134,26 @@ action finish_allreduce (p : proc) = {
 
 -- **Safety Properties**
 
--- The final result must be the mathematically correct reduction
-safety [allreduce_functional_correctness]
-  ∀ p v op, completed p ∧ has_value p v ∧ using_operation op →
-    correct_reduction_result v op
-
--- All completed processes have identical final values
-safety [allreduce_correctness]
+-- All completed processes have identical final values (consensus)
+-- This is the core property the recursive doubling algorithm must ensure
+safety [allreduce_consensus]
   ∀ p1 p2 v1 v2, completed p1 ∧ completed p2 ∧ has_value p1 v1 ∧ has_value p2 v2 → v1 = v2
 
 -- Each process holds at most one value at any time
 safety [single_value_per_process]
   ∀ p v1 v2, has_value p v1 ∧ has_value p v2 → v1 = v2
 
--- Each process contributes exactly one initial value
-safety [unique_initial_value]
-  ∀ p v1 v2, initial_value p v1 ∧ initial_value p v2 → v1 = v2
-
--- Processes with initial values must be participants
-safety [participation_consistency]
-  ∀ p v, initial_value p v → participating p
-
--- All processes use the same reduction operation
-safety [single_operation]
-  ∀ op1 op2, using_operation op1 ∧ using_operation op2 → op1 = op2
+-- No duplicate pending messages between same processes
+safety [no_duplicate_messages]
+  ∀ p1 p2 v1 v2, pending p1 p2 v1 ∧ pending p1 p2 v2 → v1 = v2
 
 -- Only participating processes can complete
 safety [completion_requires_participation]
   ∀ p, completed p → participating p
+
+-- Processes that complete must have started
+safety [completion_requires_start]
+  ∀ p, completed p → ∃ v, has_value p v
 
 #gen_spec
 #check_invariants
