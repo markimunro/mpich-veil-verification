@@ -1,0 +1,88 @@
+FOURTH PASS SPECIFICATION: Recursive Doubling Allreduce
+========================================================
+
+## OBJECTIVE
+Verify the recursive doubling allreduce algorithm core logic from lines 90-119 of the C file, focusing on the communication pattern and consensus.
+
+## ABSTRACTIONS (Never modeling these)
+- Datatype complexity (true_extent, true_lb, extent, tmp_buf)
+- Buffer management and memory allocation
+- Error handling (mpi_errno, errflag, memory tracking)
+- Low-level MPI internals
+
+## DEFERRED (Adding later)
+- Non-power-of-2 process counts (lines 54-81, 120-131)
+- In-place operations (MPI_IN_PLACE)
+- Communicator details beyond size
+
+## CORE ELEMENTS (Must model now)
+
+### From C Analysis:
+- `rank`: Process identifier (0 to comm_size-1)
+- `comm_size`: Total processes (assumed power of 2)
+- `mask`: Bitmask progression (0x1, 0x2, 0x4, 0x8, ...)
+- `dst`: Target process for communication (rank ^ mask)
+- `is_commutative`: Boolean affecting operand ordering
+- `count`: Abstracted away (just dealing with "data" per process)
+
+### Communication Pattern:
+```c
+mask = 0x1;
+while (mask < pof2) {
+    newdst = newrank ^ mask;  // Since power-of-2: newrank = rank, newdst = rank ^ mask
+    dst = newdst;             // Since power-of-2: no mapping needed
+    
+    MPIC_Sendrecv(...);       // Exchange data with partner
+    
+    if (is_commutative || (dst < rank)) {
+        MPIR_Reduce_local(tmp_buf, recvbuf, ...);
+    } else {
+        MPIR_Reduce_local(recvbuf, tmp_buf, ...);
+        // Copy result back
+    }
+    mask <<= 1;
+}
+```
+
+### Key Behaviors:
+1. **Partner Finding**: `dst = rank ^ mask` 
+2. **Simultaneous Exchange**: Each pair sends/receives simultaneously
+3. **Ordering Logic**: Lower rank first for non-commutative operations
+4. **Round Progression**: mask doubles each round until mask >= comm_size
+5. **Consensus**: All processes end with same value
+
+## WHAT NEEDS TO BE MODELED
+
+### Essential Variables:
+- Process ranks and their current values
+- Current mask value (0x1, 0x2, 0x4, 0x8, ...)
+- Whether operation is commutative
+- Which processes have completed current round
+- Which processes have completed algorithm
+
+### Essential Actions:
+- Start with input value
+- `sendrecv` with XOR partner (atomic exchange like MPIC_Sendrecv)
+- Combine received value with local value (respecting order)
+- Advance mask to next power of 2 (mask <<= 1)
+- Complete algorithm when mask >= comm_size
+
+### Communication Model:
+- Atomic `sendrecv` operation (assumes MPIC_Sendrecv works reliably)
+- Round-based progression with mask doubling
+- XOR partner finding: `partner = rank ^ mask`
+
+### Essential Properties:
+- All processes converge to same final value
+- Non-commutative operations maintain correct order
+- Algorithm terminates
+
+## DIFFERENCES FROM CURRENT VEIL FILE
+
+The current file focuses on abstract consensus without modeling:
+- The actual XOR partner calculation
+- The mask/round progression
+- The specific ordering logic for non-commutative operations
+- The log(n) communication structure
+
+We need to completely refactor to match the actual C algorithm structure. 

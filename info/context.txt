@@ -1,7 +1,7 @@
 You will be helping me verify the correctness of `allreduce_intra_recursive_doubling.c` using Veil. We need to be sure that the development will be very well documented, with consistent commits and explaining why each step is being taken. We want to build maintainable code while not creating bugs every single step of the way. We want to keep a tight loop of implementation.
 
 ## Each Folder's function
-**info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`, my notes, and folder `process` which keeps track of everything that has been done through your chat overviews.
+**info**: has the context.txt file, which is your general instruction source, and the main papers you want to draw from, veil's creation paper, a paper through collective contracts, and the best tutorial file for Veil: `Ring.lean`, my notes, and folder `process` which keeps track of everything that has been done through your chat overviews and the specification moving forward starting at the fourth pass.
 **src**: folder `chatgpt` has old attempts at verifying MPI algorithms using ChatGPT, and the rest is where the code is being developed.
 **mpich_civl**: where the verification of some MPICH algorithms was done using CIVL-C, which are the algortihms we are going to try and prove. The paper talking about what was done is `hovland-mpich-vss2025.txt`
 **mpich_repo**: the original MPICH repository
@@ -10,7 +10,7 @@ You will be helping me verify the correctness of `allreduce_intra_recursive_doub
 ## Approach to verification
 1. **Check info/process** for the previous chats so you have context of what has been going on.
 2. **Check mpich_civl/allreduce_intra_recursive_doubling.c** for the file that we are currently working on, even though we won't be implementing everything at once.
-2. **Define a rigourous specification for the current chat**. Define what will be added/included, the invariants needed for a collective contract, etc. Shorter advances are prioritized rather than huge changes.
+2. **Define a rigourous specification for the current chat with me**. Define what will be added/included, the invariants needed for a collective contract, etc. Shorter advances are prioritized rather than huge changes.
 3. **Implement it**
 4. **CTI feedback loop with counterexamples**. You are unable to test it yourself, so always ask for me to send you the counterexamples and the output.
 5. **Review changes and chat** to ensure the progress is in the right direction
