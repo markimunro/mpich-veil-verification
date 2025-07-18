@@ -24,17 +24,30 @@ int MPIR_Allreduce_intra_recursive_doubling(const void *sendbuf,
                                             MPI_Op op, MPIR_Comm * comm_ptr, MPIR_Errflag_t errflag)
 {
     MPIR_CHKLMEM_DECL();
+    // 0 ≤ rank ≤ comm_size – 1
     int comm_size, rank;
+    // ignore for now
     int mpi_errno = MPI_SUCCESS;
+    // mask 
+    // dst 
+    // is_commutative will for now be considered True
+    // pof2: nearest power-of-two less than or equal to comm_size
+    // newrank:
+    // rem: remainder when comm_size is not a power of two
+    // newdst: 
     int mask, dst, is_commutative, pof2, newrank, rem, newdst;
+    // probably ignore for now
     MPI_Aint true_extent, true_lb, extent;
     void *tmp_buf;
 
+
     MPIR_THREADCOMM_RANK_SIZE(comm_ptr, rank, comm_size);
 
+    // this is based on the operation that is chosen, for now assume it is always commutative
     is_commutative = MPIR_Op_is_commutative(op);
 
     /* need to allocate temporary buffer to store incoming data */
+    // also ignore for now
     MPIR_Type_get_true_extent_impl(datatype, &true_lb, &true_extent);
     MPIR_Datatype_get_extent_macro(datatype, extent);
 
@@ -44,14 +57,18 @@ int MPIR_Allreduce_intra_recursive_doubling(const void *sendbuf,
     tmp_buf = (void *) ((char *) tmp_buf - true_lb);
 
     /* copy local data into recvbuf */
+    // could be important when implementing actions in Veil
     if (sendbuf != MPI_IN_PLACE) {
         mpi_errno = MPIR_Localcopy(sendbuf, count, datatype, recvbuf, count, datatype);
         MPIR_ERR_CHECK(mpi_errno);
     }
 
     /* get nearest power-of-two less than or equal to comm_size */
+    // comm_size = 16, pof2 = 16
+    // comm_size = 15, pof2 = 8
     pof2 = MPL_pof2(comm_size);
 
+    // rem = 0 only if comm_size is a power of two
     rem = comm_size - pof2;
 
     /* In the non-power-of-two case, all even-numbered
@@ -60,7 +77,9 @@ int MPIR_Allreduce_intra_recursive_doubling(const void *sendbuf,
      * participate in the algorithm until the very end. The
      * remaining processes form a nice power-of-two. */
 
+    // if comm_size is a power of two, then rem = 0 and this will not be executed
     if (rank < 2 * rem) {
+        // if even, send information to odd to the right and do not let this rank participate in the communication (newrank = -1)
         if (rank % 2 == 0) {    /* even */
             mpi_errno = MPIC_Send(recvbuf, count,
                                   datatype, rank + 1, MPIR_ALLREDUCE_TAG, comm_ptr, errflag);
@@ -70,6 +89,7 @@ int MPIR_Allreduce_intra_recursive_doubling(const void *sendbuf,
              * process does not pariticipate in recursive
              * doubling */
             newrank = -1;
+        // if odd, receive information from even to the left and do the reduction, dividing the newrank by 2 which will use the unused ranks in the next round if it non power of 2
         } else {        /* odd */
             mpi_errno = MPIC_Recv(tmp_buf, count,
                                   datatype, rank - 1,
@@ -86,6 +106,9 @@ int MPIR_Allreduce_intra_recursive_doubling(const void *sendbuf,
             newrank = rank / 2;
         }
     } else      /* rank >= 2*rem */
+        // if comm_size is a power of 2, then newrank = rank
+        // if comm_size is not a power of 2, these are the ones that do not combine with values, so they are given new ranks that will then be used in the next round to have a perfect power of 2 and then do the recursive doubling
+        // for examples, if comm_size = 6, rem = 2, and newrank of the ones who get to this branch will be 4-2=2 and 5-2=3
         newrank = rank - rem;
 
     /* If op is user-defined or count is less than pof2, use
@@ -96,8 +119,9 @@ int MPIR_Allreduce_intra_recursive_doubling(const void *sendbuf,
      * the type maps are the same. Breaking up derived
      * datatypes to do the reduce-scatter is tricky, therefore
      * using recursive doubling in that case.) */
+    // if newrank = -1, then this rank does not participate in this round
 
-    if (newrank != -1) {
+     if (newrank != -1) {
         mask = 0x1;
         while (mask < pof2) {
             newdst = newrank ^ mask;
